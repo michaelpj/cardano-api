@@ -1,9 +1,13 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | Transactions in the context of a consensus mode, and other types used in
 -- the transaction submission protocol.
@@ -27,10 +31,18 @@ module Cardano.Api.InMode (
 
 import           Cardano.Api.Eon.ShelleyBasedEra
 import           Cardano.Api.Eras
+import           Cardano.Api.Eras.Constraints (shelleyBasedEraConstraints)
+import           Cardano.Api.Error (Error (..))
 import           Cardano.Api.Modes
 import           Cardano.Api.Tx
 import           Cardano.Api.TxBody
 
+import qualified Cardano.Chain.Byron.API as L
+import qualified Cardano.Ledger.Babbage.Rules as L
+import qualified Cardano.Ledger.Conway.Rules as L
+import qualified Cardano.Ledger.Core as L
+import qualified Cardano.Ledger.Era as L
+import qualified Cardano.Ledger.Shelley.API as L
 import qualified Ouroboros.Consensus.Byron.Ledger as Consensus
 import qualified Ouroboros.Consensus.Cardano.Block as Consensus
 import qualified Ouroboros.Consensus.HardFork.Combinator as Consensus
@@ -43,6 +55,7 @@ import qualified Ouroboros.Consensus.Shelley.HFEras as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as Consensus
 import qualified Ouroboros.Consensus.TypeFamilyWrappers as Consensus
 
+import           Data.Foldable (foldl')
 import           Data.SOP.Strict (NS (S, Z))
 
 
@@ -257,6 +270,36 @@ data TxValidationError era where
        :: ShelleyBasedEra era
        -> Consensus.ApplyTxErr (Consensus.ShelleyBlock (ConsensusProtocol era) (ShelleyLedgerEra era))
        -> TxValidationError era
+
+instance Error (TxValidationError era) where
+  displayError = \case
+    ByronTxValidationError ateb ->
+      case ateb of
+        L.MempoolDlgErr err -> undefined
+        L.MempoolTxErr _ -> undefined
+        L.MempoolUpdateProposalErr _ -> undefined
+        L.MempoolUpdateVoteErr _ -> undefined
+    ShelleyTxValidationError sbe (L.ApplyTxError ps) -> foldl' f "" ps
+      where
+        f acc a = shelleyBasedEraConstraints sbe $
+            case (sbe, a) of
+              (ShelleyBasedEraConway, a') -> displayError a'
+              (_, a') -> show a'
+
+instance Error (L.ConwayLedgerPredFailure (Consensus.ConwayEra TPraos.StandardCrypto)) where
+  displayError = \case
+    L.ConwayUtxowFailure e -> displayError e
+    L.ConwayCertsFailure e -> show e
+    L.ConwayGovFailure e -> show e
+    L.ConwayWdrlNotDelegatedToDRep e -> show e
+
+instance (L.Era era, Error (L.PredicateFailure (L.EraRule "UTXO" era)), Show (L.PredicateFailure (L.EraRule "UTXOS" era))) => Error (L.BabbageUtxowPredFailure era) where
+  displayError = \case
+    L.AlonzoInBabbageUtxowPredFailure e -> displayError e
+    L.UtxoFailure e -> displayError e
+    L.MalformedScriptWitnesses e -> displayError e
+    L.MalformedReferenceScripts e -> displayError e
+
 
 -- The GADT in the ShelleyTxValidationError case requires a custom instance
 instance Show (TxValidationError era) where
