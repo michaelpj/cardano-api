@@ -945,6 +945,7 @@ module Cardano.Api (
     -- ** Misc
     ScriptLockedTxInsError(..),
     TxInsExistError(..),
+    prettyRenderTxOut,
     renderEra,
     renderNotScriptLockedTxInsError,
     renderTxInsExistError,
