@@ -712,7 +712,7 @@ genTxFee =
 
 genTxBody :: CardanoEra era -> Gen (TxBody era)
 genTxBody era = do
-  res <- Api.createAndValidateTransactionBody era <$> genTxBodyContent era
+  res <- Api.createAndValidateTransactionBody (error "TODO: Propagate WhichEra") <$> genTxBodyContent era
   case res of
     Left err -> fail (displayError err)
     Right txBody -> pure txBody

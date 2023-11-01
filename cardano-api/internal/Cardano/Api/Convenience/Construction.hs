@@ -42,7 +42,7 @@ import qualified Data.Text as Text
 -- convenient way of querying the node to get the required arguements
 -- for constructBalancedTx.
 constructBalancedTx :: ()
-  => ShelleyBasedEra era
+  => WhichEra era
   -> TxBodyContent BuildTx era
   -> AddressInEra era -- ^ Change address
   -> Maybe Word       -- ^ Override key witnesses
@@ -55,13 +55,13 @@ constructBalancedTx :: ()
   -> Map.Map (L.Credential L.DRepRole L.StandardCrypto) Lovelace
   -> [ShelleyWitnessSigningKey]
   -> Either TxBodyErrorAutoBalance (Tx era)
-constructBalancedTx sbe txbodcontent changeAddr mOverrideWits utxo lpp
+constructBalancedTx whichEra txbodcontent changeAddr mOverrideWits utxo lpp
                     ledgerEpochInfo systemStart stakePools
                     stakeDelegDeposits drepDelegDeposits shelleyWitSigningKeys = do
-
+  let sbe = whichEraToSbe whichEra
   BalancedTxBody _ txbody _txBalanceOutput _fee
     <- makeTransactionBodyAutoBalance
-         sbe systemStart ledgerEpochInfo
+         whichEra systemStart ledgerEpochInfo
          lpp stakePools stakeDelegDeposits drepDelegDeposits utxo txbodcontent
          changeAddr mOverrideWits
 

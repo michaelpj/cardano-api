@@ -73,6 +73,7 @@ module Cardano.Api (
     byronToAlonzoEraToCardanoEra,
 
     -- ** From Shelley
+    WhichEra(..),
 
     ShelleyEraOnly(..),
     shelleyEraOnlyConstraints,
@@ -326,6 +327,7 @@ module Cardano.Api (
     -- ** Transaction bodies
     TxBody(TxBody),
     createAndValidateTransactionBody,
+    makeByronTransactionBody,
     TxBodyContent(..),
     getTxBodyContent,
 

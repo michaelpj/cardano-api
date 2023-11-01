@@ -28,7 +28,7 @@ prop_roundtrip_txbodycontent_txouts =
     let era = BabbageEra
     content <- H.forAll $ genTxBodyContent era
     -- Create the ledger body & auxiliaries
-    body <- case createAndValidateTransactionBody era content of
+    body <- case createAndValidateTransactionBody (error "TODO: Propagate WhichEra") content of
       Left err -> annotateShow err >> failure
       Right body -> pure body
     annotateShow body

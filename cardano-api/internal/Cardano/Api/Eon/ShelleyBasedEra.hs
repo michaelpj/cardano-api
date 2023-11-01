@@ -11,7 +11,11 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Api.Eon.ShelleyBasedEra
-  ( -- * Shelley-based eras
+  ( WhichEra(..)
+  , whichEraToSbe
+  , whichEraToCardanoEra
+
+  , -- * Shelley-based eras
     ShelleyBasedEra(..)
   , IsShelleyBasedEra(..)
   , AnyShelleyBasedEra(..)
@@ -63,6 +67,19 @@ import           Data.Aeson (FromJSON (..), ToJSON, toJSON, withText)
 import qualified Data.Text as Text
 import           Data.Type.Equality (TestEquality (..), (:~:) (Refl))
 import           Data.Typeable (Typeable)
+
+data WhichEra era where
+  MainnetEra :: WhichEra BabbageEra
+  ExperimentalEra ::  WhichEra ConwayEra
+
+-- Temporary function to ease the transition to WhichEra era
+whichEraToSbe :: WhichEra era -> ShelleyBasedEra era
+whichEraToSbe MainnetEra = ShelleyBasedEraBabbage
+whichEraToSbe ExperimentalEra = ShelleyBasedEraConway
+
+whichEraToCardanoEra :: WhichEra era -> CardanoEra era
+whichEraToCardanoEra MainnetEra = BabbageEra
+whichEraToCardanoEra ExperimentalEra = ConwayEra
 
 -- | Determine the value to use for a feature in a given 'ShelleyBasedEra'.
 inEonForShelleyBasedEra :: ()
@@ -286,8 +303,7 @@ instance FromJSON AnyShelleyBasedEra where
 anyShelleyBasedEra :: ()
   => ShelleyBasedEra era
   -> AnyShelleyBasedEra
-anyShelleyBasedEra sbe =
-  AnyShelleyBasedEra sbe
+anyShelleyBasedEra = AnyShelleyBasedEra
 
 -- | This pairs up some era-dependent type with a 'ShelleyBasedEra' value that
 -- tells us what era it is, but hides the era type. This is useful when the era

@@ -29,6 +29,7 @@ module Cardano.Api.TxBody (
     TxBody(.., TxBody),
     createTransactionBody,
     createAndValidateTransactionBody,
+    makeByronTransactionBody,
     TxBodyContent(..),
     -- ** Transaction body builders
     defaultTxBodyContent,
@@ -1800,11 +1801,12 @@ instance Error TxBodyError where
       "Errors in protocol parameters conversion: " ++ displayError ppces
 
 createTransactionBody
-  :: ShelleyBasedEra era
+  :: WhichEra era
   -> TxBodyContent BuildTx era
   -> Either TxBodyError (TxBody era)
-createTransactionBody sbe txBodyContent =
-  let apiTxOuts = txOuts txBodyContent
+createTransactionBody whichEra txBodyContent = do
+  let sbe = whichEraToSbe whichEra
+      apiTxOuts = txOuts txBodyContent
       apiScriptWitnesses = collectTxBodyScriptWitnesses sbe txBodyContent
       apiScriptValidity = txScriptValidity txBodyContent
       apiMintValue = txMintValue txBodyContent
@@ -1838,7 +1840,7 @@ createTransactionBody sbe txBodyContent =
           (txFee bc)
           (txWithdrawals bc)
 
-  in case sbe of
+  case sbe of
        ShelleyBasedEraShelley -> do
         update <- convTxUpdateProposal sbe (txUpdateProposal txBodyContent)
         let ledgerTxBody =
@@ -2121,10 +2123,11 @@ maxTxOut :: Quantity
 maxTxOut = fromIntegral (maxBound :: Word64)
 
 createAndValidateTransactionBody :: ()
-  => CardanoEra era
+  => WhichEra era
   -> TxBodyContent BuildTx era
   -> Either TxBodyError (TxBody era)
-createAndValidateTransactionBody era =
+createAndValidateTransactionBody whichEra = do
+  let era = whichEraToCardanoEra whichEra
   case cardanoEraStyle era of
     LegacyByronEra      -> makeByronTransactionBody
     ShelleyBasedEra sbe -> makeShelleyTransactionBody sbe

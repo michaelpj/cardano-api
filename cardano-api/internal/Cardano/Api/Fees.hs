@@ -9,8 +9,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
 
 {-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
 
@@ -767,7 +765,7 @@ data BalancedTxBody era
 -- which can be queried from a local node.
 --
 makeTransactionBodyAutoBalance :: forall era. ()
-  => ShelleyBasedEra era
+  => WhichEra era
   -> SystemStart
   -> LedgerEpochInfo
   -> LedgerProtocolParameters era
@@ -784,15 +782,16 @@ makeTransactionBodyAutoBalance :: forall era. ()
   -> AddressInEra era -- ^ Change address
   -> Maybe Word       -- ^ Override key witnesses
   -> Either TxBodyErrorAutoBalance (BalancedTxBody era)
-makeTransactionBodyAutoBalance sbe systemstart history lpp@(LedgerProtocolParameters pp) poolids stakeDelegDeposits
+makeTransactionBodyAutoBalance whichEra systemstart history lpp@(LedgerProtocolParameters pp) poolids stakeDelegDeposits
                             drepDelegDeposits utxo txbodycontent changeaddr mnkeys = do
+
     -- Our strategy is to:
     -- 1. evaluate all the scripts to get the exec units, update with ex units
     -- 2. figure out the overall min fees
     -- 3. update tx with fees
     -- 4. balance the transaction and update tx change output
     txbody0 <-
-      first TxBodyError $ createAndValidateTransactionBody era txbodycontent
+      first TxBodyError $ createAndValidateTransactionBody whichEra txbodycontent
         { txOuts = txOuts txbodycontent ++
                    [TxOut changeaddr (lovelaceToTxOutValue era 0) TxOutDatumNone ReferenceScriptNone]
             --TODO: think about the size of the change output
@@ -845,7 +844,7 @@ makeTransactionBodyAutoBalance sbe systemstart history lpp@(LedgerProtocolParame
 
     let (dummyCollRet, dummyTotColl) = maybeDummyTotalCollAndCollReturnOutput txbodycontent changeaddr
     txbody1 <- first TxBodyError $ -- TODO: impossible to fail now
-               createAndValidateTransactionBody era txbodycontent1 {
+               createAndValidateTransactionBody whichEra txbodycontent1 {
                  txFee  = TxFeeExplicit sbe $ Lovelace (2^(32 :: Integer) - 1),
                  txOuts = TxOut changeaddr
                                 changeTxOut
@@ -874,7 +873,7 @@ makeTransactionBodyAutoBalance sbe systemstart history lpp@(LedgerProtocolParame
     -- Here we do not want to start with any change output, since that's what
     -- we need to calculate.
     txbody2 <- first TxBodyError $ -- TODO: impossible to fail now
-               createAndValidateTransactionBody era txbodycontent1 {
+               createAndValidateTransactionBody whichEra txbodycontent1 {
                  txFee = TxFeeExplicit sbe fee,
                  txReturnCollateral = retColl,
                  txTotalCollateral = reqCol
@@ -907,7 +906,7 @@ makeTransactionBodyAutoBalance sbe systemstart history lpp@(LedgerProtocolParame
       first TxBodyError $ -- TODO: impossible to fail now. We need to implement a function
                           -- that simply creates a transaction body because we have already
                           -- validated the transaction body earlier within makeTransactionBodyAutoBalance
-        createAndValidateTransactionBody era finalTxBodyContent
+        createAndValidateTransactionBody whichEra finalTxBodyContent
     return (BalancedTxBody finalTxBodyContent txbody3 (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone) fee)
  where
    -- Essentially we check for the existence of collateral inputs. If they exist we
@@ -990,6 +989,7 @@ makeTransactionBodyAutoBalance sbe systemstart history lpp@(LedgerProtocolParame
                   , totalCollateral
                   )
                 else (TxReturnCollateralNone, TxTotalCollateralNone)
+   sbe = whichEraToSbe whichEra
 
    era :: CardanoEra era
    era = shelleyBasedToCardanoEra sbe
