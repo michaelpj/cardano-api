@@ -1805,10 +1805,11 @@ instance Error TxBodyError where
       "Errors in protocol parameters conversion: " ++ displayError ppces
 
 createTransactionBody :: ()
-  => ShelleyBasedEra era
+  => WhichEra era
   -> TxBodyContent BuildTx era
   -> Either TxBodyError (TxBody era)
-createTransactionBody sbe bc =
+createTransactionBody whichEra bc = do
+  let sbe = whichEraToSbe whichEra
   shelleyBasedEraConstraints sbe $ do
     let era = shelleyBasedToCardanoEra sbe
         apiTxOuts = txOuts bc
@@ -1864,7 +1865,7 @@ createTransactionBody sbe bc =
           mkCommonTxBody sbe (txIns bc) (txOuts bc) (txFee bc) (txWithdrawals bc) txAuxData
             & A.certsTxBodyL sbe            .~ certs
             & A.invalidHereAfterTxBodyL sbe .~ convValidityUpperBound sbe (txValidityUpperBound bc)
-            & ( appEndo $ mconcat
+            & appEndo $ mconcat
                   [ setUpdateProposal
                   , setInvalidBefore
                   , setMint
@@ -1875,7 +1876,7 @@ createTransactionBody sbe bc =
                   , setCollateralReturn
                   , setTotalCollateral
                   ]
-              )
+
 
     -- TODO: NetworkId for hardware wallets. We don't always want this
     -- & L.networkIdTxBodyL .~ ...
