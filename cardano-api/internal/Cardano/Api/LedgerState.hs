@@ -127,6 +127,7 @@ import qualified Cardano.Ledger.PoolDistr as SL
 import qualified Cardano.Ledger.Shelley.API as ShelleyAPI
 import qualified Cardano.Ledger.Shelley.Core as Core
 import qualified Cardano.Ledger.Shelley.Genesis as Ledger
+import           Cardano.Ledger.Slot (EpochSize (..))
 import qualified Cardano.Protocol.TPraos.API as TPraos
 import           Cardano.Protocol.TPraos.BHeader (checkLeaderNatValue)
 import qualified Cardano.Protocol.TPraos.BHeader as TPraos
@@ -261,17 +262,21 @@ renderLedgerStateError = \case
 initialLedgerState
   :: NodeConfigFile 'In
   -- ^ Path to the cardano-node config file (e.g. <path to cardano-node project>/configuration/cardano/mainnet-config.json)
-  -> ExceptT InitialLedgerStateError IO (Env, LedgerState)
+  -> ExceptT InitialLedgerStateError IO (Env, LedgerState, EpochSize)
   -- ^ The environment and initial ledger state
 initialLedgerState nodeConfigFile = do
   -- TODO Once support for querying the ledger config is added to the node, we
   -- can remove the nodeConfigFile argument and much of the code in this
   -- module.
   config <- withExceptT ILSEConfigFile (readNodeConfig nodeConfigFile)
-  genesisConfig <- withExceptT ILSEGenesisFile (readCardanoGenesisConfig config)
+  genesisConfig@(GenesisCardano nodeConfig _ _ _) <- withExceptT ILSEGenesisFile (readCardanoGenesisConfig config)
+
+  shelleyConfig <- firstExceptT ILSELedgerConsensusConfig $ readShelleyGenesisConfig nodeConfig
+  let epochSize = Ledger.sgEpochLength $ scConfig shelleyConfig
+
   env <- withExceptT ILSELedgerConsensusConfig (except (genesisConfigToEnv genesisConfig))
   let ledgerState = initLedgerStateVar genesisConfig
-  return (env, ledgerState)
+  return (env, ledgerState, epochSize)
 
 -- | Apply a single block to the current ledger state.
 applyBlock
@@ -395,7 +400,7 @@ foldBlocks nodeConfigFilePath socketPath validationMode state0 accumulate = do
   --  * Non-pipelined: 1h  0m  19s
   --  * Pipelined:        46m  23s
 
-  (env, ledgerState) <- withExceptT FoldBlocksInitialLedgerStateError $ initialLedgerState nodeConfigFilePath
+  (env, ledgerState, EpochSize epochSize) <- withExceptT FoldBlocksInitialLedgerStateError $ initialLedgerState nodeConfigFilePath
 
   -- Place to store the accumulated state
   -- This is a bit ugly, but easy.
@@ -420,7 +425,7 @@ foldBlocks nodeConfigFilePath socketPath validationMode state0 accumulate = do
         RequiresNoMagic -> Mainnet
         RequiresMagic -> Testnet networkMagic
 
-      cardanoModeParams = CardanoModeParams . EpochSlots $ 10 * envSecurityParam env
+      cardanoModeParams = CardanoModeParams $ EpochSlots epochSize
 
   -- Connect to the node.
   let connectInfo :: LocalNodeConnectInfo CardanoMode
