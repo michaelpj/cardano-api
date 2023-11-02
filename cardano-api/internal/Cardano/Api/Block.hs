@@ -185,8 +185,8 @@ getShelleyBlockTxs :: forall era ledgerera blockheader.
                    => ShelleyBasedEra era
                    -> Ledger.Block blockheader ledgerera
                    -> [Tx era]
-getShelleyBlockTxs era (Ledger.Block _header txs) =
-  [ ShelleyTx era txinblock
+getShelleyBlockTxs _era (Ledger.Block _header txs) =
+  [ ShelleyTx (error "TODO") txinblock
   | txinblock <- toList (Ledger.fromTxSeq txs) ]
 
 -- ----------------------------------------------------------------------------

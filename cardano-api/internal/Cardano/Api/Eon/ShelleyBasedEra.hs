@@ -11,8 +11,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Api.Eon.ShelleyBasedEra
-  ( WhichEra(..)
-  , whichEraToSbe
+  ( whichEraToSbe
   , whichEraToCardanoEra
 
   , -- * Shelley-based eras
@@ -68,9 +67,6 @@ import qualified Data.Text as Text
 import           Data.Type.Equality (TestEquality (..), (:~:) (Refl))
 import           Data.Typeable (Typeable)
 
-data WhichEra era where
-  MainnetEra :: WhichEra BabbageEra
-  ExperimentalEra ::  WhichEra ConwayEra
 
 -- Temporary function to ease the transition to WhichEra era
 whichEraToSbe :: WhichEra era -> ShelleyBasedEra era

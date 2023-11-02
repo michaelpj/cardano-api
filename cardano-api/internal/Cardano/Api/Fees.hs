@@ -115,11 +115,12 @@ transactionFee sbe txFeeFixed txFeePerByte tx =
       b = toInteger txFeeFixed
   in
   case tx of
+    BasicTx _ tx' ->  -- TODO: This function needs to be deprecated
+      let x = shelleyBasedEraConstraints sbe $ tx' ^. L.sizeTxF in Lovelace (a * x + b)
     ShelleyTx _ tx' ->
       let x = shelleyBasedEraConstraints sbe $ tx' ^. L.sizeTxF in Lovelace (a * x + b)
       --TODO: This can be made to work for Byron txs too.
     ByronTx _ -> case sbe of {}
-
 {-# DEPRECATED transactionFee "Use 'evaluateTransactionFee' instead" #-}
 
 --TODO: in the Byron case the per-byte is non-integral, would need different
@@ -148,6 +149,7 @@ estimateTransactionFee sbe nw txFeeFixed txFeePerByte = \case
   -- TODO: This can be made to work for Byron txs too.
   ByronTx _ ->
     case sbe of {}
+  BasicTx{} -> error "TODO"
   ShelleyTx era tx ->
     let Lovelace baseFee = transactionFee sbe txFeeFixed txFeePerByte (ShelleyTx era tx)
     in \nInputs nOutputs nShelleyKeyWitnesses nByronKeyWitnesses ->
@@ -218,7 +220,7 @@ evaluateTransactionFee sbe pp txbody keywitcount _byronwitcount =
     case makeSignedTransaction [] txbody of
       ByronTx{} -> case sbe of {}
       --TODO: we could actually support Byron here, it'd be different but simpler
-
+      BasicTx _ tx -> fromShelleyLovelace $ Ledger.evaluateTransactionFee pp tx keywitcount
       ShelleyTx _ tx -> fromShelleyLovelace $ Ledger.evaluateTransactionFee pp tx keywitcount
 
 -- | Give an approximate count of the number of key witnesses (i.e. signatures)
@@ -464,7 +466,15 @@ evaluateTransactionExecutionUnits :: forall era. ()
 evaluateTransactionExecutionUnits systemstart epochInfo pp utxo txbody =
     case makeSignedTransaction [] txbody of
       ByronTx {}        -> evalPreAlonzo
-      ShelleyTx sbe tx' -> evaluateTransactionExecutionUnitsShelley sbe systemstart epochInfo pp utxo tx'
+      BasicTx {} -> evalPreAlonzo
+      ShelleyTx whichEra tx' ->
+        case whichEra of
+          MainnetEra ->
+            evaluateTransactionExecutionUnitsShelley
+              (whichEraToSbe whichEra) systemstart epochInfo pp utxo tx'
+          ExperimentalEra ->
+            evaluateTransactionExecutionUnitsShelley
+              (whichEraToSbe whichEra) systemstart epochInfo pp utxo tx'
   where
     -- | Pre-Alonzo eras do not support languages with execution unit accounting.
     evalPreAlonzo :: Either TransactionValidityError
@@ -937,7 +947,6 @@ makeTransactionBodyAutoBalance whichEra systemstart history lpp@(LedgerProtocolP
    -- Calculation taken from validateInsufficientCollateral: https://github.com/input-output-hk/cardano-ledger/blob/389b266d6226dedf3d2aec7af640b3ca4984c5ea/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Rules/Utxo.hs#L335
    -- TODO: Bug Jared to expose a function from the ledger that returns total and return collateral.
    calcReturnAndTotalCollateral :: ()
-      => Ledger.AlonzoEraPParams (ShelleyLedgerEra era)
       => BabbageEraOnwards era
       -> Lovelace -- ^ Fee
       -> Ledger.PParams (ShelleyLedgerEra era)

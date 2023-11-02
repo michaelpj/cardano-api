@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -11,7 +12,9 @@
 -- | Cardano eras, sometimes we have to distinguish them.
 --
 module Cardano.Api.Eras.Core
-  ( -- * Eras
+  ( WhichEra (..)
+
+  , -- * Eras
     ByronEra
   , ShelleyEra
   , AllegraEra
@@ -109,6 +112,16 @@ instance HasTypeProxy BabbageEra where
 instance HasTypeProxy ConwayEra where
    data AsType ConwayEra = AsConwayEra
    proxyToAsType _ = AsConwayEra
+
+
+
+data WhichEra era where
+  MainnetEra :: WhichEra BabbageEra
+  ExperimentalEra :: WhichEra ConwayEra
+
+
+deriving instance Eq   (WhichEra era)
+deriving instance Show (WhichEra era)
 
 -- ----------------------------------------------------------------------------
 -- Eon

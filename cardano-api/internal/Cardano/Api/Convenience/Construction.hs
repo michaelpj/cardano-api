@@ -18,6 +18,7 @@ module Cardano.Api.Convenience.Construction (
 import           Cardano.Api.Address
 import           Cardano.Api.Certificate
 import           Cardano.Api.Eon.ShelleyBasedEra
+import           Cardano.Api.Eras.Core
 import           Cardano.Api.Fees
 import           Cardano.Api.ProtocolParameters
 import           Cardano.Api.Query
