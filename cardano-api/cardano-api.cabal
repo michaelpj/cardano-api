@@ -197,7 +197,6 @@ library internal
                       , sop-core
                       , stm
                       , strict-sop-core
-                      , text >= 2.0
                       , time
                       , transformers
                       , transformers-except ^>= 0.1.3
@@ -205,6 +204,11 @@ library internal
                       , unordered-containers >= 0.2.11
                       , vector
                       , yaml
+
+  -- text-2 requires some C++ parts, and won't build in
+  -- some cross situations. So we continue to allow 
+  -- text-1 for now
+  build-depends:      text >=1 && < 2.2
 
 library
   import:               project-config
